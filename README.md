@@ -237,7 +237,7 @@ Ambang: `OK` < 0,10, `WARN` 0,10-0,20, `ALERT` ≥ 0,20 (diatur di `config.yaml`
 | 3. Evaluasi | `python -m src.evaluate` | ✅ `reports/evaluation.md` |
 | 4. API | `pytest tests -q` | ✅ 35 passed |
 | 4. UI | render 1440px + 390px, submit contoh, state rendah/tinggi, error API | ✅ dicek manual (screenshot), tanpa test browser otomatis |
-| 4. CI | workflow YAML | ⏳ YAML valid; menunggu run pertama di GitHub |
+| 4. CI | workflow di GitHub Actions | ✅ pipeline (data, train, evaluate, drift, 35 test) dan docker smoke test hijau |
 | 4. Serving | uvicorn + curl `/health`, `/predict` | ✅ 200, probabilitas wajar |
 | 5. Docker | `docker build` → run → curl | ✅ build sukses, `/health` 200, `/predict` identik dengan lokal (selisih < 1e-6), `/predict/batch` 3 baris identik, input invalid → 422, healthcheck `healthy`, user `appuser` |
 | 6. Drift | `python -m src.monitor.drift` | ✅ normal OK, drifted ALERT |
