@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Churn Bureau · Meja Intake Retensi</title>
+  <meta name="description" content="Formulir intake pelanggan, probabilitas churn dari model logistic regression, dan ambang biaya yang menentukan siapa masuk daftar retensi.">
+  <meta name="theme-color" content="#0b0a09">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#dossier">Lewati ke formulir</a>
+
+  <header class="masthead">
+    <div class="masthead__brand">
+      <h1 class="wordmark">Churn<span>Bureau</span></h1>
+      <p class="masthead__meta">Divisi Retensi · Berkas 0417 · Data Telco IBM</p>
+      <p class="masthead__tagline">Meja intake untuk pelanggan yang mungkin tidak kembali. Isi berkas, baca risikonya, putuskan siapa yang ditelepon lebih dulu.</p>
+    </div>
+    <div class="status" id="status">
+      <span class="status__row">
+        <span class="status__lamp" id="lamp" aria-hidden="true"></span>
+        <span class="micro">Arsip</span>
+        <strong class="status__text" id="status-text">Menghubungi</strong>
+      </span>
+      <span class="status__row status__row--sub">
+        <span class="micro" id="model-line">model … · ambang …</span>
+      </span>
+    </div>
+  </header>
+
+  <p class="offline" id="offline" role="alert" hidden>
+    Arsip tidak terjangkau. API belum menyala; jalankan <code>.\run.ps1 serve</code>, lalu muat ulang halaman ini.
+  </p>
+
+  <main>
+    <section class="desk" aria-label="Meja intake">
+      <form class="dossier" id="dossier" novalidate tabindex="-1">
+        <div class="dossier__head">
+          <div>
+            <h2 class="section-title">Berkas pelanggan</h2>
+            <p class="micro">Formulir 27-B · 19 kolom fitur</p>
+          </div>
+          <div class="presets" role="group" aria-label="Contoh berkas">
+            <span class="micro presets__label">Contoh</span>
+            <button type="button" class="preset" data-preset="fresh">
+              <span>Fiber baru</span>
+              <small>bulanan, 2 bln</small>
+            </button>
+            <button type="button" class="preset" data-preset="loyal">
+              <span>Setia 2 tahun</span>
+              <small>kontrak panjang</small>
+            </button>
+            <button type="button" class="preset" data-preset="drift">
+              <span>DSL 18 bln</span>
+              <small>tanpa add-on</small>
+            </button>
+          </div>
+        </div>
+
+        <fieldset class="dossier__group">
+          <legend class="micro">Subjek</legend>
+          <div class="grid">
+            <div class="field field--wide">
+              <label for="customerID">ID berkas <span class="hint">opsional</span></label>
+              <input id="customerID" name="customerID" type="text" maxlength="64" autocomplete="off" placeholder="mis. 7590-VHVEG">
+            </div>
+
+            <div class="field">
+              <label for="gender">Jenis kelamin</label>
+              <div class="control control--select">
+                <select id="gender" name="gender">
+                  <option value="Female">Perempuan</option>
+                  <option value="Male">Laki-laki</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="SeniorCitizen">Lansia</label>
+              <div class="control control--select">
+                <select id="SeniorCitizen" name="SeniorCitizen">
+                  <option value="0">Tidak</option>
+                  <option value="1">Ya</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="Partner">Punya pasangan</label>
+              <div class="control control--select">
+                <select id="Partner" name="Partner">
+                  <option value="Yes">Ya</option>
+                  <option value="No">Tidak</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="Dependents">Punya tanggungan</label>
+              <div class="control control--select">
+                <select id="Dependents" name="Dependents">
+                  <option value="Yes">Ya</option>
+                  <option value="No">Tidak</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="tenure">Masa berlangganan (bulan)</label>
+              <input id="tenure" name="tenure" type="number" min="0" max="72" step="1" value="2" inputmode="numeric">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="dossier__group">
+          <legend class="micro">Layanan</legend>
+          <div class="grid">
+            <div class="field">
+              <label for="PhoneService">Layanan telepon</label>
+              <div class="control control--select">
+                <select id="PhoneService" name="PhoneService">
+                  <option value="Yes">Ya</option>
+                  <option value="No">Tidak</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="MultipleLines">Banyak saluran</label>
+              <div class="control control--select">
+                <select id="MultipleLines" name="MultipleLines">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No phone service">Tanpa telepon</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="InternetService">Internet</label>
+              <div class="control control--select">
+                <select id="InternetService" name="InternetService">
+                  <option value="Fiber optic">Fiber optic</option>
+                  <option value="DSL">DSL</option>
+                  <option value="No">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="OnlineSecurity">Keamanan online</label>
+              <div class="control control--select">
+                <select id="OnlineSecurity" name="OnlineSecurity">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="OnlineBackup">Cadangan online</label>
+              <div class="control control--select">
+                <select id="OnlineBackup" name="OnlineBackup">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="DeviceProtection">Proteksi perangkat</label>
+              <div class="control control--select">
+                <select id="DeviceProtection" name="DeviceProtection">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="TechSupport">Dukungan teknis</label>
+              <div class="control control--select">
+                <select id="TechSupport" name="TechSupport">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="StreamingTV">Streaming TV</label>
+              <div class="control control--select">
+                <select id="StreamingTV" name="StreamingTV">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="StreamingMovies">Streaming film</label>
+              <div class="control control--select">
+                <select id="StreamingMovies" name="StreamingMovies">
+                  <option value="No">Tidak</option>
+                  <option value="Yes">Ya</option>
+                  <option value="No internet service">Tanpa internet</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="dossier__group">
+          <legend class="micro">Tagihan</legend>
+          <div class="grid">
+            <div class="field">
+              <label for="Contract">Kontrak</label>
+              <div class="control control--select">
+                <select id="Contract" name="Contract">
+                  <option value="Month-to-month">Bulanan</option>
+                  <option value="One year">1 tahun</option>
+                  <option value="Two year">2 tahun</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="PaperlessBilling">Tagihan tanpa kertas</label>
+              <div class="control control--select">
+                <select id="PaperlessBilling" name="PaperlessBilling">
+                  <option value="Yes">Ya</option>
+                  <option value="No">Tidak</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field field--wide">
+              <label for="PaymentMethod">Metode pembayaran</label>
+              <div class="control control--select">
+                <select id="PaymentMethod" name="PaymentMethod">
+                  <option value="Electronic check">Cek elektronik</option>
+                  <option value="Mailed check">Cek pos</option>
+                  <option value="Bank transfer (automatic)">Transfer bank (otomatis)</option>
+                  <option value="Credit card (automatic)">Kartu kredit (otomatis)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="MonthlyCharges">Tagihan bulanan (USD)</label>
+              <input id="MonthlyCharges" name="MonthlyCharges" type="number" min="0.01" max="200" step="0.01" value="70.70" inputmode="decimal">
+            </div>
+
+            <div class="field">
+              <label for="TotalCharges">Total tagihan (USD)</label>
+              <div class="control control--inline">
+                <input id="TotalCharges" name="TotalCharges" type="number" min="0" max="15000" step="0.01" value="151.65" inputmode="decimal">
+                <button type="button" class="mini" id="estimate-total" title="Isi dengan masa berlangganan × tagihan bulanan">≈ tenure × bulanan</button>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="dossier__foot">
+          <p class="micro dossier__note">Satu panggilan API per berkas.</p>
+          <button class="submit" id="submit" type="submit">
+            <span id="submit-label">Pindai berkas</span>
+          </button>
+        </div>
+      </form>
+
+      <aside class="console" aria-label="Konsol putusan">
+        <div class="console__bar">
+          <span class="micro">Konsol putusan</span>
+          <span class="micro console__case" id="case-no">CB-0000</span>
+        </div>
+
+        <div class="console__screen" id="screen" data-verdict="idle">
+          <span class="screen__led" aria-hidden="true"></span>
+          <p class="micro">Probabilitas churn</p>
+          <output class="readout" id="prob" aria-live="polite">Tunggu</output>
+          <p class="readout__sub" id="prob-sub">menunggu berkas</p>
+
+          <div class="meter" id="meter" aria-hidden="true"></div>
+          <div class="meter__scale" aria-hidden="true">
+            <span>0,00</span>
+            <span>0,50</span>
+            <span>1,00</span>
+          </div>
+          <p class="meter__threshold" id="threshold-label">Ambang 0,17</p>
+
+          <div class="verdict" id="verdict" hidden>
+            <span class="stamp" id="stamp">Prioritas retensi</span>
+            <p class="verdict__copy" id="verdict-copy"></p>
+          </div>
+
+          <p class="stale" id="stale" hidden>Formulir sudah diubah. Pindai ulang untuk hasil baru.</p>
+
+          <dl class="console__meta">
+            <div><dt>Ambang</dt><dd id="meta-threshold">…</dd></div>
+            <div><dt>Putusan</dt><dd id="meta-decision">…</dd></div>
+            <div><dt>Versi</dt><dd id="meta-model">…</dd></div>
+            <div><dt>Waktu</dt><dd id="meta-time">…</dd></div>
+          </dl>
+
+          <div class="error" id="error" role="alert" hidden></div>
+        </div>
+
+        <div class="console__signals">
+          <p class="micro">Sinyal berkas terpindai</p>
+          <div class="chips" id="chips">
+            <span class="chip chip--empty">belum ada berkas</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="batch" aria-labelledby="batch-title">
+      <div class="batch__head">
+        <div>
+          <h2 class="section-title" id="batch-title">Berkas massal</h2>
+          <p class="micro">CSV · header 19 kolom · 1-500 baris</p>
+        </div>
+        <div class="batch__tools">
+          <button type="button" class="ghost" id="batch-sample">Muat 3 contoh</button>
+          <button type="button" class="ghost" id="batch-broken">Contoh baris rusak</button>
+          <label class="ghost" for="batch-file">Pilih berkas .csv</label>
+          <input class="visually-hidden" id="batch-file" type="file" accept=".csv,text/csv">
+        </div>
+      </div>
+
+      <div class="batch__grid">
+        <div class="batch__panel">
+          <label class="micro" for="batch-csv">Tempel CSV</label>
+          <textarea id="batch-csv" class="batch__csv" rows="9" spellcheck="false"
+            placeholder="customerID,gender,SeniorCitizen,Partner,Dependents,tenure,..."></textarea>
+          <div class="batch__run">
+            <p class="micro" id="batch-file-name">belum ada berkas</p>
+            <button class="submit submit--inline" id="batch-submit" type="button">Prediksi batch</button>
+          </div>
+          <div class="error" id="batch-error" role="alert" hidden></div>
+        </div>
+
+        <div class="batch__panel">
+          <p class="micro">Hasil batch</p>
+          <p class="batch__summary" id="batch-summary" aria-live="polite">belum ada hasil</p>
+          <div class="ledger__wrap">
+            <table class="ledger__table batch__table">
+              <caption class="visually-hidden">Satu baris hasil untuk setiap baris CSV</caption>
+              <thead>
+                <tr><th scope="col">Baris</th><th scope="col">Subjek</th><th scope="col">Prob.</th><th scope="col">Putusan</th></tr>
+              </thead>
+              <tbody id="batch-body"></tbody>
+            </table>
+            <p class="ledger__empty" id="batch-empty">Belum ada batch diprediksi.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="intel" aria-labelledby="intel-title">
+      <div>
+        <h2 class="section-title" id="intel-title">Apa yang dipelajari model</h2>
+        <p class="lede">Satu model logistic regression membaca 19 kolom, dilatih pada 4.930 pelanggan, lalu diuji sekali pada 1.057 pelanggan yang tidak pernah dilihatnya.</p>
+
+        <table class="metrics">
+          <caption class="visually-hidden">Metrik model di test set pada ambang operasional</caption>
+          <thead>
+            <tr><th scope="col">Metrik</th><th scope="col">Nilai</th><th scope="col">Arti</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">ROC-AUC</th><td id="metric-roc">…</td><td>Kemampuan mengurutkan churn di atas non-churn</td></tr>
+            <tr><th scope="row">PR-AUC</th><td id="metric-pr">…</td><td>Kualitas saat kelas churn minoritas</td></tr>
+            <tr><th scope="row">Recall</th><td id="metric-recall">…</td><td>Porsi churn yang benar-benar tertangkap</td></tr>
+            <tr><th scope="row">Presisi</th><td id="metric-precision">…</td><td>Porsi berkas yang ditandai dan memang churn</td></tr>
+            <tr><th scope="row">Brier</th><td id="metric-brier">…</td><td>Selisih probabilitas dari kenyataan (makin kecil makin baik)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="threshold-note">
+        <h3 class="section-title section-title--small">Kenapa ambangnya 0,17, bukan 0,50</h3>
+        <p>Pelanggan churn yang lolos dianggap 5× lebih mahal daripada satu diskon retensi yang salah sasaran. Ambang digeser sampai biaya totalnya paling rendah di validation set.</p>
+
+        <table class="compare">
+          <caption class="visually-hidden">Perbandingan dua ambang pada test set</caption>
+          <thead>
+            <tr><th scope="col">Ambang</th><th scope="col">Churn tertangkap</th><th scope="col">Presisi</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">0,50</th><td>52,7%</td><td>69,2%</td></tr>
+            <tr class="compare__chosen"><th scope="row">0,17</th><td>89,3%</td><td>45,5%</td></tr>
+          </tbody>
+        </table>
+        <p class="fineprint">Diukur pada test set 1.057 pelanggan. Angka ini mengubah siapa yang ditelepon; urutan risiko dari model tetap sama.</p>
+      </div>
+    </section>
+
+    <section class="ledger" aria-labelledby="ledger-title">
+      <div class="ledger__head">
+        <div>
+          <h2 class="section-title" id="ledger-title">Buku kasus</h2>
+          <p class="micro">Sesi ini · maksimal 8 berkas terakhir</p>
+        </div>
+        <button type="button" class="ghost" id="clear-ledger">Kosongkan</button>
+      </div>
+      <div class="ledger__wrap">
+        <table class="ledger__table">
+          <caption class="visually-hidden">Berkas yang sudah dipindai di sesi ini</caption>
+          <thead>
+            <tr><th scope="col">Jam</th><th scope="col">Subjek</th><th scope="col">Prob.</th><th scope="col">Putusan</th></tr>
+          </thead>
+          <tbody id="ledger-body"></tbody>
+        </table>
+        <p class="ledger__empty" id="ledger-empty">Belum ada berkas dipindai di sesi ini.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Ambang 0,17 mengikuti asumsi biaya FN 5 : FP 1 di <code>config.yaml</code>, jadi bukan angka netral. Model memprediksi niat churn, bukan efektivitas program retensi.</p>
+    <p class="foot__links">
+      <a href="/docs">Dokumentasi API</a>
+      <span aria-hidden="true">·</span>
+      <span>Logistic regression v0.1.0</span>
+      <span aria-hidden="true">·</span>
+      <span>Contoh berkas bukan pelanggan nyata</span>
+    </p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

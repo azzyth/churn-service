@@ -1,0 +1,141 @@
+name: churn-service CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: churn-service-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.14"
+  DATASET_URL: "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv"
+  DATASET_SHA256: "88be4b93fbe0cc83421af1c503794c97c342eca914c1576db7c276e61d61358a"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  pipeline:
+    name: Data, model, evaluasi, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache raw dataset
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: telco-raw-${{ env.DATASET_SHA256 }}
+
+      - name: Fetch dataset (public IBM mirror)
+        run: |
+          set -euo pipefail
+          target="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv"
+          mkdir -p data/raw
+          if [ ! -f "$target" ]; then
+            curl -fsSL --retry 3 --retry-delay 2 -o "$target" "$DATASET_URL"
+          fi
+          echo "$DATASET_SHA256  $target" | sha256sum -c -
+
+      - name: Smoke imports and config
+        run: python -m src.check
+
+      - name: Build splits and EDA figures
+        run: python -m src.data.make_dataset
+
+      - name: Verify split reproducibility
+        run: |
+          set -euo pipefail
+          before=$(sha256sum data/splits/*.csv | sort)
+          python -m src.data.make_dataset
+          after=$(sha256sum data/splits/*.csv | sort)
+          if [ "$before" != "$after" ]; then
+            echo "Split tidak reproducible: hash berubah antar dua kali make_dataset." >&2
+            diff <(echo "$before") <(echo "$after") >&2 || true
+            exit 1
+          fi
+
+      - name: Train and compare models
+        run: python -m src.train
+
+      - name: Evaluate and pick cost-based threshold
+        run: python -m src.evaluate
+
+      - name: Drift report
+        run: python -m src.monitor.drift
+
+      - name: Test suite
+        run: python -m pytest tests -q
+
+      - name: Upload model and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: churn-artifacts
+          path: |
+            models/
+            reports/
+          retention-days: 14
+
+  docker:
+    name: Docker build + smoke test
+    needs: pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: churn-artifacts
+          path: .
+
+      - name: Build image
+        run: docker build -t churn-service:ci .
+
+      - name: Start container
+        run: docker run -d --name churn-ci -p 8000:8000 churn-service:ci
+
+      - name: Wait for health
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              echo "API siap setelah ${attempt} percobaan"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API tidak siap dalam 60 detik" >&2
+          docker logs churn-ci >&2
+          exit 1
+
+      - name: Check API and UI
+        run: python scripts/smoke_test.py http://127.0.0.1:8000
+
+      - name: Container logs
+        if: failure()
+        run: docker logs churn-ci
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f churn-ci

@@ -1,0 +1,62 @@
+# Konfigurasi tunggal untuk seluruh pipeline churn-service.
+# Semua path relatif terhadap root project (folder churn-service/).
+
+project:
+  name: churn-service
+  version: "0.1.0"
+
+seed: 42
+
+paths:
+  raw_dir: data/raw
+  raw_file: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+  splits_dir: data/splits
+  processed_dir: data/processed
+  models_dir: models
+  model_file: models/model.pkl
+  meta_file: models/model_meta.json
+  reports_dir: reports
+  figures_dir: reports/figures
+  logs_dir: logs
+  predictions_log: logs/predictions.jsonl
+  drift_report: logs/drift_report.json
+
+data:
+  target: Churn
+  id_column: customerID
+  # 70/15/15, stratifikasi pada target. Test set hanya dipakai di fase evaluasi.
+  split:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+
+business:
+  # Biaya relatif: kehilangan pelanggan 5x lebih mahal daripada
+  # salah menawarkan diskon retensi ke pelanggan yang sebenarnya loyal.
+  cost_false_negative: 5.0
+  cost_false_positive: 1.0
+  # Target presisi minimum saat memilih threshold (0 = tidak dibatasi).
+  min_precision: 0.0
+
+cv:
+  n_splits: 5
+  shuffle: true
+
+models:
+  logistic_regression:
+    C: 1.0
+    max_iter: 2000
+  lightgbm:
+    n_estimators: 400
+    learning_rate: 0.05
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+    verbose: -1
+
+monitoring:
+  psi_bins: 10
+  psi_warn: 0.10
+  psi_alert: 0.20

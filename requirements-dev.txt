@@ -1,0 +1,4 @@
+# Dependency khusus pengembangan & pengambilan data. Sengaja dipisah dari
+# requirements.txt supaya CLI Kaggle tidak ikut masuk ke image Docker.
+-r requirements.txt
+kaggle==2.2.4

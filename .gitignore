@@ -1,0 +1,23 @@
+# Data mentah & turunan tidak di-commit (bisa diunduh ulang lewat src.data.download)
+data/raw/*
+!data/raw/.gitkeep
+data/splits/*
+!data/splits/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Artefak model
+models/*
+!models/.gitkeep
+
+# Log runtime
+logs/*
+!logs/.gitkeep
+
+# Output laporan: markdown dan figur ikut di-commit supaya README bisa menautkannya.
+# Angka di dalamnya dihasilkan ulang oleh src.evaluate dan src.data.make_dataset.
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
