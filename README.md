@@ -171,14 +171,15 @@ kesalahan `role="alert"`, dan animasi dimatikan saat `prefers-reduced-motion`.
 dipicu manual:
 
 1. **pipeline**: install dependency, unduh dataset dari mirror publik IBM dengan cek
-   SHA-256 (`88be4b93…`), `src.check`, bangun split + EDA, buktikan split reproducible
+   SHA-256 (`16320c9c…`), `src.check`, bangun split + EDA, buktikan split reproducible
    (dua kali `make_dataset`, hash harus sama), latih, evaluasi, drift, lalu seluruh test.
    Model dan laporan diunggah sebagai artifact.
 2. **docker**: ambil model dari artifact, build image, jalankan container, tunggu
    `/health`, lalu cek `/ui/`, `/model/info`, dan `/predict` (0,691377 ± 1e-4).
 
-Dataset tidak butuh kredensial Kaggle di CI karena memakai mirror resmi IBM dengan
-checksum yang sama seperti file lokal.
+Dataset tidak butuh kredensial Kaggle di CI karena memakai mirror resmi IBM. Isinya identik
+dengan CSV Kaggle, hanya beda akhir baris: mirror memakai LF (`16320c9c…`, yang dicek CI),
+salinan lokal dari Kaggle memakai CRLF (`88be4b93…`).
 
 Repositori ini tidak menyimpan `data/`, `models/`, dan `logs/`; CI membangun ulang
 split, model, dan laporan dari CSV mentah, sedangkan `reports/*.md` dan `reports/figures/`

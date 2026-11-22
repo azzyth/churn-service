@@ -15,7 +15,8 @@ concurrency:
 env:
   PYTHON_VERSION: "3.14"
   DATASET_URL: "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv"
-  DATASET_SHA256: "88be4b93fbe0cc83421af1c503794c97c342eca914c1576db7c276e61d61358a"
+  # SHA-256 file mirror apa adanya (LF). Salinan dari Kaggle isinya sama tetapi ber-CRLF.
+  DATASET_SHA256: "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONDONTWRITEBYTECODE: "1"
 
